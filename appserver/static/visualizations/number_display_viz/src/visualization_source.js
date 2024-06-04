@@ -328,6 +328,10 @@ function(
                 thresholdvalue4: "thresholdval4",
                 thresholdvalue5: "thresholdval5",
                 thresholdvalue6: "thresholdval6",
+                info_min_time: "info_min_time",
+                info_max_time: "info_max_time",
+                info_search_time: "info_search_time",
+                info_sid: "info_sid",
             };
 
             // viz.datamode = 1 is "|timechart" data. it doesnt allow for overrides
@@ -1056,7 +1060,7 @@ item.svgGradient = "<defs><pattern id='" + item.svgTextureId + "' patternUnits='
                 if (viz.config.sparkorder !== "no") {
                     item.ctx1 = item.$canvas1[0].getContext('2d');
                     item.areaCfg = {
-                        type: viz.config.sparkstyle == "column" ? "bar" : "line",
+                        type: viz.config.sparkstyle == "column" || viz.config.sparkstyle == "status" ? "bar" : "line",
                         data: {
                             datasets: [],
                             labels: []
@@ -1070,17 +1074,14 @@ item.svgGradient = "<defs><pattern id='" + item.svgTextureId + "' patternUnits='
                                 display: false,
                             },
                             tooltips: {
+                                enabled: false,
+                                custom: function(c){ viz.tooltip(c, this); },
                                 mode: 'index',
-                                intersect: false,
-                                callbacks: {
-                                    label: function(tooltipItem, data) {
-                                        return "";
-                                    }
-                                }
+                                intersect: false
                             },
                             hover: {
-                                mode: 'nearest',
-                                intersect: true
+                                mode: 'index',
+                                intersect: false
                             },
                             animation: {
                                 duration: 0,
@@ -1102,11 +1103,16 @@ item.svgGradient = "<defs><pattern id='" + item.svgTextureId + "' patternUnits='
                             }
                         }
                     };
-                    if ($.trim(viz.config.sparkmax) !== "" && ! isNaN(Number(viz.config.sparkmax))) {
-                        item.areaCfg.options.scales.yAxes[0].ticks.max = Number(viz.config.sparkmax);
-                    }
-                    if ($.trim(viz.config.sparkmin) !== "" && ! isNaN(Number(viz.config.sparkmin))) {
-                        item.areaCfg.options.scales.yAxes[0].ticks.min = Number(viz.config.sparkmin);
+                    if (viz.config.sparkstyle == "status") {
+                        item.areaCfg.options.scales.yAxes[0].ticks.min = 0;
+                        item.areaCfg.options.scales.yAxes[0].ticks.max = 1;
+                    } else {
+                        if ($.trim(viz.config.sparkmax) !== "" && ! isNaN(Number(viz.config.sparkmax))) {
+                            item.areaCfg.options.scales.yAxes[0].ticks.max = Number(viz.config.sparkmax);
+                        }
+                        if ($.trim(viz.config.sparkmin) !== "" && ! isNaN(Number(viz.config.sparkmin))) {
+                            item.areaCfg.options.scales.yAxes[0].ticks.min = Number(viz.config.sparkmin);
+                        }
                     }
                     item.myArea = new Chart(item.ctx1, item.areaCfg);
                 }
@@ -1270,26 +1276,84 @@ item.svgGradient = "<defs><pattern id='" + item.svgTextureId + "' patternUnits='
             }
             
             if (viz.config.sparkorder !== "no") {
-                item.areaCfg.data.labels = item.overtimedata;
+                var block = null;
+                if (item.hasOwnProperty("info_min_time") && item.hasOwnProperty("info_max_time")) {
+                    var diff = item.info_max_time - item.info_min_time;
+                    //console.log("if exact, each block is " + (diff / item.overtimedata.length), "seconds. divides nicely= ", !!((diff / item.overtimedata.length) % 10 == 0));
+                    //console.log("if one block extra, each block is " + (diff / (item.overtimedata.length - 1)), "seconds. divides nicely= ", !!((diff / (item.overtimedata.length - 1)) % 10 == 0));
+                    block = (diff / item.overtimedata.length);
+                    if (block % 10 != 0) { // if not divides evenly into 10 seconds
+                        block = (diff / item.overtimedata.length - 1);
+                        if (block % 10 != 0) { // if not divides evenly into 10 seconds
+                            block = null;
+                        }
+                    }
+                }
+                item.areaCfg.data.labels = [];
+                var tme_start = Math.floor((+item.info_min_time) / block) * block;
+                for (var m = 0; m < item.overtimedata.length; m++) {
+                    var tme = "";
+                    if (block !== null) {
+                        var d = new Date(0); // The 0 there is the key, which sets the date to the epoch
+                        d.setUTCSeconds((block * m + tme_start));
+                        tme = d.toLocaleString() + " = ";
+                    }
+                    if (viz.config.sparkstyle == "status") {
+                        if (item.overtimedata[m] >= 6) {
+                            item.areaCfg.data.labels.push(tme + "Error");
+                        } else if (item.overtimedata[m] >= 4) {
+                            item.areaCfg.data.labels.push(tme + "Warning");
+                        } else if (item.overtimedata[m] >= 2) {
+                            item.areaCfg.data.labels.push(tme + "Good");
+                        } else if (item.overtimedata[m] >= 0) {
+                            item.areaCfg.data.labels.push(tme + "Informational");
+                        } else  {
+                            item.areaCfg.data.labels.push(tme + "Unknown");
+                        }
+                    } else {
+                        item.areaCfg.data.labels.push(tme + item.overtimedata[m]);
+                    }
+                }
+
                 if (item.areaCfg.data.datasets.length === 0) {
                     item.areaCfg.data.datasets.push({});
                 }
                 item.areaCfg.data.datasets[0].label = "";
-                item.areaCfg.data.datasets[0].borderColor = viz.getColorFromMode(viz.config.sparkcolormodeline, viz.config.sparkcolorline, value_color);
-                item.areaCfg.data.datasets[0].backgroundColor = viz.getColorFromMode(viz.config.sparkcolormodefill, viz.config.sparkcolorfill, value_color);
-                item.areaCfg.data.datasets[0].pointBorderColor = item.areaCfg.data.datasets[0].borderColor;
-                item.areaCfg.data.datasets[0].pointBackgroundColor = item.areaCfg.data.datasets[0].borderColor;
-                item.areaCfg.data.datasets[0].pointRadius = 1;
-                if (viz.config.sparknulls === "zero") {
+                if (viz.config.sparkstyle == "status") {
                     item.areaCfg.data.datasets[0].data = [];
+                    item.areaCfg.data.datasets[0].backgroundColor = [];
                     for (var m = 0; m < item.overtimedata.length; m++) {
-                        item.areaCfg.data.datasets[0].data.push(item.overtimedata[m] === null ? 0 : item.overtimedata[m]);
+                        item.areaCfg.data.datasets[0].data.push(1);
+                        if (item.overtimedata[m] >= 6) {
+                            item.areaCfg.data.datasets[0].backgroundColor.push("#b22b32");
+                        } else if (item.overtimedata[m] >= 4) {
+                            item.areaCfg.data.datasets[0].backgroundColor.push("#d16f18");
+                        } else if (item.overtimedata[m] >= 2) {
+                            item.areaCfg.data.datasets[0].backgroundColor.push("#1a9035");
+                        } else if (item.overtimedata[m] >= 0) {
+                            item.areaCfg.data.datasets[0].backgroundColor.push("#009DD9");
+                        } else  {
+                            item.areaCfg.data.datasets[0].backgroundColor.push("#708794");
+                        }
                     }
                 } else {
-                    item.areaCfg.data.datasets[0].data = item.overtimedata;
+                    item.areaCfg.data.datasets[0].borderColor = viz.getColorFromMode(viz.config.sparkcolormodeline, viz.config.sparkcolorline, value_color);
+                    item.areaCfg.data.datasets[0].backgroundColor = viz.getColorFromMode(viz.config.sparkcolormodefill, viz.config.sparkcolorfill, value_color);
+                    item.areaCfg.data.datasets[0].pointBorderColor = item.areaCfg.data.datasets[0].borderColor;
+                    item.areaCfg.data.datasets[0].pointBackgroundColor = item.areaCfg.data.datasets[0].borderColor;
+                    item.areaCfg.data.datasets[0].pointRadius = 1;
+                    if (viz.config.sparknulls === "zero") {
+                        item.areaCfg.data.datasets[0].data = [];
+                        for (var m = 0; m < item.overtimedata.length; m++) {
+                            item.areaCfg.data.datasets[0].data.push(item.overtimedata[m] === null ? 0 : item.overtimedata[m]);
+                        }
+                    } else {
+                        item.areaCfg.data.datasets[0].data = item.overtimedata;
+                    }
+                    item.areaCfg.data.datasets[0].fill = viz.config.sparkstyle == "area" ? 'origin' : false;
+                    item.areaCfg.data.datasets[0].spanGaps = (viz.config.sparknulls === "span");
                 }
-                item.areaCfg.data.datasets[0].fill = viz.config.sparkstyle == "area" ? 'origin' : false;
-                item.areaCfg.data.datasets[0].spanGaps = (viz.config.sparknulls === "span");
+            
             }
             // in-data override
             if (item.hasOwnProperty("text")) {
@@ -1432,6 +1496,35 @@ item.svgGradient = "<defs><pattern id='" + item.svgTextureId + "' patternUnits='
                 return color1;
             }
             return color2;
+        },
+
+        tooltip: function(tooltipModel, chart) {
+            var viz = this;
+            var tooltipEl = $('.number_display_viz-tooltip');
+            // Create element on first render
+            if (tooltipEl.length === 0) {
+                tooltipEl = $('<div class="number_display_viz-tooltip"></div>').appendTo("body");
+            }
+        // Hide if no tooltip
+            if (tooltipModel.opacity === 0 || ! tooltipModel.body) {
+                tooltipEl.css("opacity","");
+                return;
+            }
+            tooltipEl.text(tooltipModel.dataPoints[0].label);
+            var position = chart._chart.canvas.getBoundingClientRect();
+            var styles = {
+                opacity: 1,
+                top: (position.top + window.pageYOffset + tooltipModel.caretY) + 'px'
+            };
+            var h_offset = position.left + window.pageXOffset + tooltipModel.caretX;
+            if (h_offset > (window.innerWidth * 0.8)) {
+                styles.right = window.innerWidth - h_offset + 30;
+                styles.left = "";
+            } else {
+                styles.left = h_offset + 30;
+                styles.right = "";
+            }
+            tooltipEl.css(styles)
         },
 
         // Override to respond to re-sizing events

@@ -1,8 +1,8 @@
-<form theme="light" hideAppBar="true">
+<form version="1.1" theme="light" hideAppBar="true">
   <label>Number Display Viz - Documentation</label>
   <search id="base1">
-    <query>index=_internal | stats sparkline(sum(count)) as overtime| eval text="42"</query>
-    <earliest>-24h@h</earliest>
+    <query>| gentimes start=-30 end=0 increment=12h | rename starttime as _time | fields + _time | eval myValue=random()%500 | stats sparkline(avg(myValue)) as overtime| eval text="42"</query>
+    <earliest>-30d</earliest>
     <latest>now</latest>
     <sampleRatio>1</sampleRatio>
   </search>
@@ -209,8 +209,8 @@ Copyright (C) 2020 Chris Younger | <a href="https://github.com/ChrisYounger/numb
 <p>The primary and secondary fields are the colors that are used by the main style component such as the gauge, spinner, or the shape color. This allows the color to be set to a static color and the threshold color to be used for the textvalue overlay, the sparkline or other places. Exactly what the primary or secondary color affects is different for each style, however it is typically a gradient range. If the Primary and Secondary color are set exactly the same then some of the shape textures will not be visible. </p>
 </li>
 <li>
-<p>To show a sparkline, then be sure to pass in sparkline data. use <code>| stats sparkline(AGG_FUNCTION(VALUE))</code>
-              </p>
+<p>To show a sparkline, then be sure to pass in sparkline data. use <code>| stats sparkline(AGG_FUNCTION(VALUE))</code></p>
+<p>There is a special sparkline mode called "Status". When this is selected you should pass in sparkline field that contains values that map to statuses: &gt;= 6 (Error) &gt;= 4 (Warning) &gt;= 2 (Good) &gt;= 0 (Informational) &lt; 0 (Unknown) -  This is the compatable with the internal codes used by ITSI.</p>
 </li>
 <li>
 <p>The Text, Title, Subtitle tabs allow for configuring how text overlays are applied. They are all kind of the same except the text value can have animations on change, and a unit prefix/suffix.</p>
@@ -1048,11 +1048,8 @@ Here is an example showing an icon being displayed:
   <row depends="$showpage3$">
     <panel>
       <viz type="number_display_viz.number_display_viz">
-        <search>
-          <query>index=_internal   | stats  sparkline(sum(count)) as overtime  | eval  v =81</query>
-          <earliest>-15m</earliest>
-          <latest>now</latest>
-          <sampleRatio>1</sampleRatio>
+        <search base="base1">
+          <query> | eval v = "8"</query>
         </search>
         <option name="drilldown">none</option>
         <option name="height">297</option>
@@ -1139,11 +1136,8 @@ Here is an example showing an icon being displayed:
     </panel>
     <panel>
       <viz type="number_display_viz.number_display_viz">
-        <search>
-          <query>index=_internal|dedup index | eval title = "Orders"| table title date_second</query>
-          <earliest>rt-1m</earliest>
-          <latest>rt</latest>
-          <sampleRatio>1</sampleRatio>
+        <search base="base1">
+          <query> | eval title = "Orders" | eval v = "-8"</query>
         </search>
         <option name="drilldown">none</option>
         <option name="height">313</option>
@@ -1223,11 +1217,8 @@ Here is an example showing an icon being displayed:
     </panel>
     <panel>
       <viz type="number_display_viz.number_display_viz">
-        <search>
-          <query>index=_internal   | stats  sparkline(sum(count)) as overtime  | eval  v =81</query>
-          <earliest>-24h@h</earliest>
-          <latest>now</latest>
-          <sampleRatio>1</sampleRatio>
+        <search base="base1">
+          <query> | eval v = "81"</query>
         </search>
         <option name="drilldown">none</option>
         <option name="height">304</option>
@@ -1311,11 +1302,8 @@ Here is an example showing an icon being displayed:
     </panel>
     <panel>
       <viz type="number_display_viz.number_display_viz">
-        <search>
-          <query>index=_internal|dedup index | table date_second date_minute</query>
-          <earliest>rt-1m</earliest>
-          <latest>rt</latest>
-          <sampleRatio>1</sampleRatio>
+        <search base="base1">
+          <query> | eval v = "8" | fields + v</query>
         </search>
         <option name="drilldown">none</option>
         <option name="height">317</option>
@@ -1401,11 +1389,8 @@ Here is an example showing an icon being displayed:
     </panel>
     <panel>
       <viz type="number_display_viz.number_display_viz">
-        <search>
-          <query>index=_internal   | stats  sparkline(sum(count)) as overtime  | eval  v = 100</query>
-          <earliest>1559887200.000</earliest>
-          <latest>1559974733.000</latest>
-          <sampleRatio>1</sampleRatio>
+        <search base="base1">
+          <query> | eval v = "100"</query>
         </search>
         <option name="drilldown">none</option>
         <option name="number_display_viz.number_display_viz.bordercolor">#ffffff</option>
@@ -1486,11 +1471,8 @@ Here is an example showing an icon being displayed:
     </panel>
     <panel>
       <viz type="number_display_viz.number_display_viz">
-        <search>
-          <query>index=_internal|dedup index | table date_second date_minute</query>
-          <earliest>rt-1m</earliest>
-          <latest>rt</latest>
-          <sampleRatio>1</sampleRatio>
+        <search base="base1">
+          <query> | eval v = "8" | fields + v</query>
         </search>
         <option name="drilldown">none</option>
         <option name="height">317</option>
